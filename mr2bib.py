@@ -40,267 +40,266 @@ import requests
 path = "http://www.ams.org/msnmain"
 
 if sys.version_info < (2, 6):
-    raise Exception("Python 2.6 or higher required")
+  raise Exception("Python 2.6 or higher required")
 
 # Python 2 compatibility code
 PY2 = sys.version_info[0] == 2
 if not PY2:
-    from urllib.parse import urlencode
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    print_bytes = lambda s: sys.stdout.buffer.write(s)
+  from urllib.parse import urlencode
+  from urllib.request import urlopen
+  from urllib.error import HTTPError
+  print_bytes = lambda s: sys.stdout.buffer.write(s)
 else:
-    from urllib import urlencode
-    from urllib2 import HTTPError, urlopen
-    print_bytes = lambda s: sys.stdout.write(s)
+  from urllib import urlencode
+  from urllib2 import HTTPError, urlopen
+  print_bytes = lambda s: sys.stdout.write(s)
 
 
 
 def is_valid(mr_id):
-    # TODO
-    """Checks if id resembles a valid Mathetical Reviews identifier."""
-    return True
+  # TODO
+  """Checks if id resembles a valid Mathetical Reviews identifier."""
+  return True
 
 
 class FatalError(Exception):
-    """Error that prevents us from continuing"""
+  """Error that prevents us from continuing"""
 
 
 class NotFoundError(Exception):
-    """Reference not found by the Mathematical Reviews API"""
+  """Reference not found by the Mathematical Reviews API"""
 
 
 class AuthenticationException(Exception):
-  def __str__(self):
-    return "Not authenticated"
+ def __str__(self):
+  return "Not authenticated"
 
 
 class Reference(object):
-    """Represents a single reference.
-    """
-    def __init__(self, entry):
-        self.entry = entry
+  """Represents a single reference.
+  """
+  def __init__(self, entry):
+    self.entry = entry
 
-    def bibtex(self):
-        return self.entry
+  def bibtex(self):
+    return self.entry
 
 
 class ReferenceErrorInfo(object):
-    """Contains information about a reference error"""
-    def __init__(self, message, id):
-        self.message = message
-        self.id = id
-        self.bare_id = id[:id.rfind('v')]
-        # mark it as really old, so it gets superseded if possible
-        self.updated = '0'
+  """Contains information about a reference error"""
+  def __init__(self, message, id):
+    self.message = message
+    self.id = id
+    self.bare_id = id[:id.rfind('v')]
+    # mark it as really old, so it gets superseded if possible
+    self.updated = '0'
 
-    def bibtex(self):
-        """BibTeX comment explaining error"""
-        return "@comment{%(id)s: %(message)s}" % \
-                {'id': self.id, 'message': self.message}
+  def bibtex(self):
+    """BibTeX comment explaining error"""
+    return "@comment{%(id)s: %(message)s}" % \
+        {'id': self.id, 'message': self.message}
 
-    def __str__(self):
-        return "Error: %(message)s (%(id)s)" % \
-                {'id': self.id, 'message': self.message}
+  def __str__(self):
+    return "Error: %(message)s (%(id)s)" % \
+        {'id': self.id, 'message': self.message}
 
 
 def mr2bib(id_list):
-    """Returns a list of references, corresponding to elts of id_list"""
-    d = mr2bib_dict(id_list)
-    l = []
-    for id in id_list:
-        try:
-            l.append(d[id])
-        except:
-            l.append(ReferenceErrorInfo("Not found", id))
+  """Returns a list of references, corresponding to elts of id_list"""
+  d = mr2bib_dict(id_list)
+  l = []
+  for id in id_list:
+    try:
+      l.append(d[id])
+    except:
+      l.append(ReferenceErrorInfo("Not found", id))
 
-    return l
+  return l
 
 
 def mr_request(key):
-    """Sends a request to the Mathematical Reviews API"""
+  """Sends a request to the Mathematical Reviews API"""
 
-    # reconstructing the BibTeX code block
-    inCodeBlock = False
-    code = ""
+  # reconstructing the BibTeX code block
+  inCodeBlock = False
+  code = ""
 
-    # make the request
-    payload = {"fn": 130, "fmt": "bibtex", "pg1": "MR", "s1": key}
-    r = requests.get(path, params=payload)
+  # make the request
+  payload = {"fn": 130, "fmt": "bibtex", "pg1": "MR", "s1": key}
+  r = requests.get(path, params=payload)
 
-    # 401 means not authenticated
-    if r.status_code == 401:
-        raise AuthenticationException()
+  # 401 means not authenticated
+  if r.status_code == 401:
+    raise AuthenticationException()
 
-    # anything but 200 means something else went wrong
-    if not r.status_code == 200:
-        raise Exception("Received HTTP status code " + str(r.status_code))
+  # anything but 200 means something else went wrong
+  if not r.status_code == 200:
+    raise Exception("Received HTTP status code " + str(r.status_code))
 
-    for line in r.text.split("\n"):
-        if "No publications results for" in line:
-            raise KeyNotFoundException(key)
+  for line in r.text.split("\n"):
+    if "No publications results for" in line:
+      raise KeyNotFoundException(key)
 
+    if line.strip() == "</pre>": inCodeBlock = False
 
-        if line.strip() == "</pre>": inCodeBlock = False
+    if inCodeBlock:
+      code = code + "\n" + line
 
-        if inCodeBlock:
-            code = code + "\n" + line
+    if line.strip() == "<pre>": inCodeBlock = True
 
-        if line.strip() == "<pre>": inCodeBlock = True
-
-    return code
+  return code
 
 
 def mr2bib_dict(key_list):
-    """Fetches citations for keys in key_list into a dictionary indexed by key"""
-    keys = []
-    d = {}
+  """Fetches citations for keys in key_list into a dictionary indexed by key"""
+  keys = []
+  d = {}
 
-    # validate keys
-    for key in key_list:
-        if is_valid(key):
-            keys.append(key)
-        else:
-            d[key] = ReferenceErrorInfo("Invalid Mathematical Reviews identifier", key)
+  # validate keys
+  for key in key_list:
+    if is_valid(key):
+      keys.append(key)
+    else:
+      d[key] = ReferenceErrorInfo("Invalid Mathematical Reviews identifier", key)
 
-    if len(keys) == 0:
-        return d
-
-    # make the api call
-    entries = {}
-    for key in keys:
-        # TODO more like arxiv2bib?
-        try:
-            entry = mr_request(key)
-            d[key] = Reference(entry)
-        except NotFoundError as error:
-            message, id = error.args
-            ref = ReferenceErrorInfo(message, id)
-
+  if len(keys) == 0:
     return d
+
+  # make the api call
+  entries = {}
+  for key in keys:
+    # TODO more like arxiv2bib?
+    try:
+      entry = mr_request(key)
+      d[key] = Reference(entry)
+    except NotFoundError as error:
+      message, id = error.args
+      ref = ReferenceErrorInfo(message, id)
+
+  return d
 
 
 class Cli(object):
-    """Command line interface"""
+  """Command line interface"""
 
-    def __init__(self, args=None):
-        """Parse arguments"""
-        self.args = self.parse_args(args)
+  def __init__(self, args=None):
+    """Parse arguments"""
+    self.args = self.parse_args(args)
 
-        if len(self.args.id) == 0:
-            self.args.id = [line.strip() for line in sys.stdin]
+    if len(self.args.id) == 0:
+      self.args.id = [line.strip() for line in sys.stdin]
 
-        # avoid duplicate error messages unless verbose is set
-        if self.args.comments and not self.args.verbose:
-            self.args.quiet = True
+    # avoid duplicate error messages unless verbose is set
+    if self.args.comments and not self.args.verbose:
+      self.args.quiet = True
 
-        self.output = []
-        self.messages = []
-        self.error_count = 0
-        self.code = 0
+    self.output = []
+    self.messages = []
+    self.error_count = 0
+    self.code = 0
 
-    def run(self):
-        """Produce output and error messages"""
-        try:
-            bib = mr2bib(self.args.id)
-        except HTTPError as error:
-            if error.getcode() == 403:
-                raise FatalError("""\
-    403 Forbidden error. This usually happens when you make many
-    rapid fire requests in a row. If you continue to do this, arXiv.org may
-    interpret your requests as a denial of service attack.
+  def run(self):
+    """Produce output and error messages"""
+    try:
+      bib = mr2bib(self.args.id)
+    except HTTPError as error:
+      if error.getcode() == 403:
+        raise FatalError("""\
+  403 Forbidden error. This usually happens when you make many
+  rapid fire requests in a row. If you continue to do this, arXiv.org may
+  interpret your requests as a denial of service attack.
 
-    For more information, see http://arxiv.org/help/robots.
-    """) # TODO fix this
-            else:
-                raise FatalError(
-                  "HTTP Connection Error: {0}".format(error.getcode()))
+  For more information, see http://arxiv.org/help/robots.
+  """) # TODO fix this
+      else:
+        raise FatalError(
+         "HTTP Connection Error: {0}".format(error.getcode()))
 
-        self.create_output(bib)
-        self.code = self.tally_errors(bib)
+    self.create_output(bib)
+    self.code = self.tally_errors(bib)
 
-    def create_output(self, bib):
-        """Format the output and error messages"""
-        for b in bib:
-            if isinstance(b, ReferenceErrorInfo):
-                self.error_count += 1
-                if self.args.comments:
-                    self.output.append(b.bibtex())
-                if not self.args.quiet:
-                    self.messages.append(str(b))
-            else:
-                self.output.append(b.bibtex())
+  def create_output(self, bib):
+    """Format the output and error messages"""
+    for b in bib:
+      if isinstance(b, ReferenceErrorInfo):
+        self.error_count += 1
+        if self.args.comments:
+          self.output.append(b.bibtex())
+        if not self.args.quiet:
+          self.messages.append(str(b))
+      else:
+        self.output.append(b.bibtex())
 
-    def print_output(self):
-        if not self.output:
-            return
+  def print_output(self):
+    if not self.output:
+      return
 
-        output_string = os.linesep.join(self.output)
-        try:
-            print(output_string)
-        except UnicodeEncodeError:
-            print_bytes((output_string + os.linesep).encode('utf-8'))
-            if self.args.verbose:
-                self.messages.append(
-                  'Could not use system encoding; using utf-8')
+    output_string = os.linesep.join(self.output)
+    try:
+      print(output_string)
+    except UnicodeEncodeError:
+      print_bytes((output_string + os.linesep).encode('utf-8'))
+      if self.args.verbose:
+        self.messages.append(
+         'Could not use system encoding; using utf-8')
 
-    def tally_errors(self, bib):
-        """calculate error code"""
-        if self.error_count == len(self.args.id):
-            self.messages.append("No successful matches")
-            return 2
-        elif self.error_count > 0:
-            self.messages.append("%s of %s matched succesfully" %
-              (len(bib) - self.error_count, len(bib)))
-            return 1
-        else:
-            return 0
+  def tally_errors(self, bib):
+    """calculate error code"""
+    if self.error_count == len(self.args.id):
+      self.messages.append("No successful matches")
+      return 2
+    elif self.error_count > 0:
+      self.messages.append("%s of %s matched succesfully" %
+       (len(bib) - self.error_count, len(bib)))
+      return 1
+    else:
+      return 0
 
-    def print_messages(self):
-        """print messages to stderr"""
-        if self.messages:
-            self.messages.append("")
-            sys.stderr.write(os.linesep.join(self.messages))
+  def print_messages(self):
+    """print messages to stderr"""
+    if self.messages:
+      self.messages.append("")
+      sys.stderr.write(os.linesep.join(self.messages))
 
-    @staticmethod
-    def parse_args(args):
-        try:
-            import argparse
-        except:
-            sys.exit("Cannot load required module 'argparse'")
+  @staticmethod
+  def parse_args(args):
+    try:
+      import argparse
+    except:
+      sys.exit("Cannot load required module 'argparse'")
 
-        parser = argparse.ArgumentParser(
-            # TODO fix these
-          description="Get the BibTeX for each arXiv id.",
-          epilog="""\
-    Returns 0 on success, 1 on partial failure, 2 on total failure.
-    Valid BibTeX is written to stdout, error messages to stderr.
-    If no arguments are given, ids are read from stdin, one per line.""",
-          formatter_class=argparse.RawDescriptionHelpFormatter)
-        parser.add_argument('id', metavar='arxiv_id', nargs="*",
-          help="arxiv identifier, such as 1201.1213")
-        parser.add_argument('-c', '--comments', action='store_true',
-          help="Include @comment fields with error details")
-        parser.add_argument('-q', '--quiet', action='store_true',
-          help="Display fewer error messages")
-        parser.add_argument('-v', '--verbose', action="store_true",
-          help="Display more error messages")
-        return parser.parse_args(args)
+    parser = argparse.ArgumentParser(
+      # TODO fix these
+     description="Get the BibTeX for each arXiv id.",
+     epilog="""\
+  Returns 0 on success, 1 on partial failure, 2 on total failure.
+  Valid BibTeX is written to stdout, error messages to stderr.
+  If no arguments are given, ids are read from stdin, one per line.""",
+     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('id', metavar='arxiv_id', nargs="*",
+     help="arxiv identifier, such as 1201.1213")
+    parser.add_argument('-c', '--comments', action='store_true',
+     help="Include @comment fields with error details")
+    parser.add_argument('-q', '--quiet', action='store_true',
+     help="Display fewer error messages")
+    parser.add_argument('-v', '--verbose', action="store_true",
+     help="Display more error messages")
+    return parser.parse_args(args)
 
 
 def main(args=None):
-    """Run the command line interface"""
-    cli = Cli(args)
-    try:
-        cli.run()
-    except FatalError as err:
-        sys.stderr.write(err.args[0] + os.linesep)
-        return 2
+  """Run the command line interface"""
+  cli = Cli(args)
+  try:
+    cli.run()
+  except FatalError as err:
+    sys.stderr.write(err.args[0] + os.linesep)
+    return 2
 
-    cli.print_output()
-    cli.print_messages()
-    return cli.code
+  cli.print_output()
+  cli.print_messages()
+  return cli.code
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+  sys.exit(main())
