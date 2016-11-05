@@ -56,10 +56,9 @@ else:
 
 
 
-def is_valid(mr_id):
-  # TODO
+def is_valid(key):
   """Checks if id resembles a valid Mathetical Reviews identifier."""
-  return True
+  return key[0:2] == "MR" and key[2:].isdigit() and len(key) in [9, 10]
 
 
 class FatalError(Exception):
@@ -138,7 +137,7 @@ def mr_request(key):
 
   for line in r.text.split("\n"):
     if "No publications results for" in line:
-      raise KeyNotFoundException(key)
+      raise NotFoundError("No such publication", key)
 
     if line.strip() == "</pre>": inCodeBlock = False
 
@@ -168,13 +167,12 @@ def mr2bib_dict(key_list):
   # make the api call
   entries = {}
   for key in keys:
-    # TODO more like arxiv2bib?
     try:
       entry = mr_request(key)
       d[key] = Reference(entry)
     except NotFoundError as error:
       message, id = error.args
-      ref = ReferenceErrorInfo(message, id)
+      d[key] = ReferenceErrorInfo(message, id)
 
   return d
 
@@ -203,17 +201,7 @@ class Cli(object):
     try:
       bib = mr2bib(self.args.id)
     except HTTPError as error:
-      if error.getcode() == 403:
-        raise FatalError("""\
-  403 Forbidden error. This usually happens when you make many
-  rapid fire requests in a row. If you continue to do this, arXiv.org may
-  interpret your requests as a denial of service attack.
-
-  For more information, see http://arxiv.org/help/robots.
-  """) # TODO fix this
-      else:
-        raise FatalError(
-         "HTTP Connection Error: {0}".format(error.getcode()))
+      raise FatalError("HTTP Connection Error: {0}".format(error.getcode()))
 
     self.create_output(bib)
     self.code = self.tally_errors(bib)
@@ -269,15 +257,14 @@ class Cli(object):
       sys.exit("Cannot load required module 'argparse'")
 
     parser = argparse.ArgumentParser(
-      # TODO fix these
-     description="Get the BibTeX for each arXiv id.",
+     description="Get the BibTeX for each MathSciNet id.",
      epilog="""\
   Returns 0 on success, 1 on partial failure, 2 on total failure.
   Valid BibTeX is written to stdout, error messages to stderr.
   If no arguments are given, ids are read from stdin, one per line.""",
      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('id', metavar='arxiv_id', nargs="*",
-     help="arxiv identifier, such as 1201.1213")
+     help="MathSciNet identifier, such as MR1996800")
     parser.add_argument('-c', '--comments', action='store_true',
      help="Include @comment fields with error details")
     parser.add_argument('-q', '--quiet', action='store_true',
