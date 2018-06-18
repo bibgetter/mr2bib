@@ -35,6 +35,7 @@ import sys
 import re
 import os
 import requests
+import pybtex.database
 
 # path for the API
 path = "http://www.ams.org/msnmain"
@@ -115,6 +116,16 @@ def mr2bib(id_list):
 
   return l
 
+# The API of Math Reviews is broken in the following sense:
+# https://mathscinet.ams.org/msnmain?fn=130&fmt=bibtex&pg1=mr&s1=MR0546620
+# returns BibTeX code with the key set to MR546620.
+# Observe that the leading '0' after 'MR' went missing. This is bad.
+def correct_key(goodkey,code):
+  """Corrects the BibTeX key because the MR API cannot get its act together"""
+  db = pybtex.database.parse_string(code,"bibtex")
+  entry = db.entries.values()[0]
+  badkey = entry.key
+  return code.replace(badkey,goodkey)
 
 def mr_request(key):
   """Sends a request to the Mathematical Reviews API"""
@@ -146,7 +157,7 @@ def mr_request(key):
 
     if line.strip() == "<pre>": inCodeBlock = True
 
-  return code
+  return correct_key(key,code)
 
 
 def mr2bib_dict(key_list):
