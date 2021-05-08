@@ -4,7 +4,7 @@ from MathSciNet in the BibTeX format.
 
 Transform this::
 
-    $ arxiv2bib 1001.1001
+    $ mr2bib MR1996800
 
 Into this::
 
@@ -44,6 +44,7 @@ setup(
     entry_points = {
         "console_scripts": ["mr2bib = mr2bib:main"]
     },
+    install_requires = ["pybtex"],
     license = "BSD",
     classifiers = [
         "Programming Language :: Python :: 2",

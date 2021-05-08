@@ -123,8 +123,8 @@ def mr2bib(id_list):
 def correct_key(goodkey,code):
   """Corrects the BibTeX key because the MR API cannot get its act together"""
   db = pybtex.database.parse_string(code,"bibtex")
-  entry = db.entries.values()[0]
-  badkey = entry.key
+  keys = [key for key in db.entries.keys()]
+  badkey = keys[0]
   return code.replace(badkey,goodkey)
 
 def mr_request(key):
@@ -274,7 +274,7 @@ class Cli(object):
   Valid BibTeX is written to stdout, error messages to stderr.
   If no arguments are given, ids are read from stdin, one per line.""",
      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('id', metavar='arxiv_id', nargs="*",
+    parser.add_argument('id', metavar='mathscinet_id', nargs="*",
      help="MathSciNet identifier, such as MR1996800")
     parser.add_argument('-c', '--comments', action='store_true',
      help="Include @comment fields with error details")
