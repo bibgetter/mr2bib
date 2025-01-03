@@ -38,7 +38,7 @@ import requests
 import pybtex.database
 
 # path for the API
-path = "http://www.ams.org/msnmain"
+path = "https://mathscinet.ams.org/mathscinet/2006/mathscinet/search/publications.html"
 
 if sys.version_info < (2, 6):
   raise Exception("Python 2.6 or higher required")
