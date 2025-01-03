@@ -32,10 +32,8 @@
 
 from __future__ import print_function
 import sys
-import re
 import os
 import requests
-import pybtex.database
 
 # path for the API
 path = "https://mathscinet.ams.org/mathscinet/2006/mathscinet/search/publications.html"
@@ -126,10 +124,12 @@ def mr2bib(id_list):
 # Observe that the leading '0' after 'MR' went missing. This is bad.
 def correct_key(goodkey, code):
     """Corrects the BibTeX key because the MR API cannot get its act together"""
-    db = pybtex.database.parse_string(code, "bibtex")
-    keys = [key for key in db.entries.keys()]
-    badkey = keys[0]
-    return code.replace(badkey, goodkey)
+    return code
+    # TODO disable this for now
+    # db = pybtex.database.parse_string(code, "bibtex")
+    # keys = [key for key in db.entries.keys()]
+    # badkey = keys[0]
+    # return code.replace(badkey, goodkey)
 
 
 def mr_request(key):
