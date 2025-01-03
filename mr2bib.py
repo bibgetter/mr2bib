@@ -34,6 +34,7 @@ from __future__ import print_function
 import sys
 import os
 import requests
+import fake_useragent
 
 # path for the API
 path = "https://mathscinet.ams.org/mathscinet/2006/mathscinet/search/publications.html"
@@ -141,7 +142,8 @@ def mr_request(key):
 
     # make the request
     payload = {"fn": 130, "fmt": "bibtex", "pg1": "MR", "s1": key}
-    r = requests.get(path, params=payload)
+    headers = {"User-Agent": fake_useragent.UserAgent().chrome}
+    r = requests.get(path, params=payload, headers=headers)
 
     # 401 means not authenticated
     if r.status_code == 401:
