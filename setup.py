@@ -44,7 +44,7 @@ setup(
     entry_points = {
         "console_scripts": ["mr2bib = mr2bib:main"]
     },
-    install_requires = ["pybtex"],
+    install_requires = ["pybtex", "requests", "fake-useragent"],
     license = "BSD",
     classifiers = [
         "Programming Language :: Python :: 2",
