@@ -125,12 +125,8 @@ def mr2bib(id_list):
 # Observe that the leading '0' after 'MR' went missing. This is bad.
 def correct_key(goodkey, code):
     """Corrects the BibTeX key because the MR API cannot get its act together"""
-    return code
-    # TODO disable this for now
-    # db = pybtex.database.parse_string(code, "bibtex")
-    # keys = [key for key in db.entries.keys()]
-    # badkey = keys[0]
-    # return code.replace(badkey, goodkey)
+    badkey = "MR" + goodkey[2:].lstrip("0")
+    return code.replace(badkey, goodkey)
 
 
 def mr_request(key):
