@@ -59,7 +59,7 @@ else:
 
 def is_valid(key):
     """Checks if id resembles a valid Mathetical Reviews identifier."""
-    return key[0:2] == "MR" and key[2:].isdigit() and len(key) in [9, 10]
+    return key[0:2] == "MR" and key[2:].isdigit() and len(key) <= 10
 
 
 class FatalError(Exception):
